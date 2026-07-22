@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ocean Quest: Recommendation Systems</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #04243f;
+    padding: 16px;
+  }
+
+  .wrap {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .header {
+    text-align: center;
+    color: #eaf7ff;
+    margin-bottom: 12px;
+  }
+  .header h1 {
+    font-size: 22px;
+    margin-bottom: 4px;
+  }
+  .header p {
+    font-size: 13px;
+    color: #b6dcf0;
+  }
+
+  .progress-bar-outer {
+    max-width: 420px;
+    margin: 10px auto 16px auto;
+    background: rgba(255,255,255,0.15);
+    border-radius: 20px;
+    height: 20px;
+    overflow: hidden;
+    border: 2px solid rgba(255,255,255,0.3);
+    position: relative;
+  }
+  .progress-bar-inner {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #ffd166, #ff9f43);
+    transition: width 0.5s ease;
+  }
+  .progress-label {
+    text-align: center;
+    color: #ffe9b8;
+    font-size: 12px;
+    font-weight: bold;
+    margin-top: -14px;
+  }
+
+  .ocean {
+    position: relative;
+    width: 100%;
+    height: 560px;
+    border-radius: 18px;
+    overflow: hidden;
+    background: linear-gradient(180deg, #7ed6df 0%, #2e86ab 30%, #145a86 60%, #0a2f52 100%);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    border: 4px solid #0d3b5c;
+  }
+
+  .rays {
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 220px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0));
+    pointer-events: none;
+  }
+
+  .sand {
+    position: absolute;
+    bottom: 0; left: 0; right: 0; height: 40px;
+    background: linear-gradient(180deg, #e0c48e, #c9a86a);
+  }
+
+  .seaweed {
+    position: absolute;
+    bottom: 36px;
+    width: 14px;
+    height: 70px;
+    background: #1f7a4d;
+    border-radius: 40px 40px 0 0;
+    transform-origin: bottom center;
+    animation: sway 3.5s ease-in-out infinite;
+    opacity: 0.85;
+  }
+  @keyframes sway {
+    0%, 100% { transform: rotate(-8deg); }
+    50% { transform: rotate(8deg); }
+  }
+
+  .bubble {
+    position: absolute;
+    bottom: -20px;
+    width: 10px;
+    height: 10px;
+    background: rgba(255,255,255,0.55);
+    border-radius: 50%;
+    animation-name: rise;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+  @keyframes rise {
+    0% { bottom: -20px; opacity: 0.8; transform: translateX(0); }
+    50% { transform: translateX(15px); }
+    100% { bottom: 580px; opacity: 0; transform: translateX(-10px); }
+  }
+
+  .creature-track {
+    position: absolute;
+    width: 100%;
+    height: 90px;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
+  .creature-bob {
+    position: absolute;
+    animation-name: bob;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+  }
+  @keyframes bob {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-12px); }
+  }
+
+  .creature {
+    position: relative;
+    cursor: pointer;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.35));
+    transition: transform 0.15s ease;
+  }
+  .creature:hover {
+    transform: scale(1.08);
+  }
+  .creature.collected {
+    opacity: 0.35;
+    filter: grayscale(70%) drop-shadow(0 4px 6px rgba(0,0,0,0.2));
+  }
+  .creature.collected:hover {
+    transform: none;
+    cursor: default;
+  }
+
+  .creature-tag {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.92);
+    color: #0a2f52;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+
+  .checkmark {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: #2ecc71;
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid white;
+  }
+
+  /* swim lanes, flip via scaleX so it faces direction of travel */
+  @keyframes swimRight {
+    0% { left: -12%; }
+    100% { left: 108%; }
+  }
+  @keyframes swimLeft {
+    0% { left: 108%; }
+    100% { left: -12%; }
+  }
+
+  .hint {
+    text-align: center;
+    color: #cfeeff;
+    font-size: 12px;
+    margin-top: 10px;
+    opacity: 0.85;
+  }
+
+  /* modal */
+  .overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(3, 20, 38, 0.75);
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    padding: 20px;
+  }
+  .overlay.show {
+    visibility: visible;
+    opacity: 1;
+  }
+
+  .card {
+    background: #ffffff;
+    max-width: 480px;
+    width: 100%;
+    border-radius: 18px;
+    padding: 26px;
+    position: relative;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+    transform: translateY(20px);
+    transition: transform 0.25s ease;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  .overlay.show .card {
+    transform: translateY(0);
+  }
+
+  .card-icon {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 10px;
+  }
+
+  .card h2 {
+    color: #0a2f52;
+    font-size: 19px;
+    margin-bottom: 4px;
+  }
+  .card .subtitle {
+    color: #2e86ab;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 14px;
+  }
+  .card ul {
+    padding-left: 18px;
+    margin-bottom: 14px;
+  }
+  .card li {
+    color: #2c3e50;
+    font-size: 14px;
+    margin-bottom: 8px;
+    line-height: 1.45;
+  }
+  .card .example-box {
+    background: #eef8ff;
+    border-left: 4px solid #2e86ab;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #0a2f52;
+    margin-bottom: 16px;
+  }
+  .close-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: none;
+    background: #f0f0f0;
+    color: #555;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .continue-btn {
+    background: linear-gradient(90deg, #2e86ab, #1a5f8a);
+    color: white;
+    border: none;
+    padding: 11px 22px;
+    border-radius: 30px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+  }
+
+  /* completion modal */
+  .treasure-card {
+    text-align: center;
+  }
+  .treasure-card .chest {
+    font-size: 56px;
+    margin-bottom: 8px;
+  }
+  .relation-box {
+    text-align: left;
+    background: #fff8e6;
+    border: 2px dashed #ffb703;
+    border-radius: 12px;
+    padding: 14px;
+    margin: 16px 0;
+    font-size: 13px;
+    color: #6b4a00;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="header">
+    <h1>🌊 Ocean Quest: Recommendation Systems</h1>
+    <p>Click the swimming sea creatures to open their summary cards!</p>
+  </div>
+
+  <div class="progress-bar-outer">
+    <div class="progress-bar-inner" id="progressBar"></div>
+  </div>
+  <div class="progress-label" id="progressLabel">0 / 4 collected</div>
+
+  <div class="ocean" id="ocean">
+    <div class="rays"></div>
+
+    <!-- bubbles -->
+    <div class="bubble" style="left:10%; animation-duration:6s; animation-delay:0s;"></div>
+    <div class="bubble" style="left:30%; animation-duration:8s; animation-delay:1.5s;"></div>
+    <div class="bubble" style="left:55%; animation-duration:7s; animation-delay:0.5s;"></div>
+    <div class="bubble" style="left:70%; animation-duration:9s; animation-delay:2.5s;"></div>
+    <div class="bubble" style="left:85%; animation-duration:6.5s; animation-delay:1s;"></div>
+    <div class="bubble" style="left:45%; animation-duration:7.5s; animation-delay:3s;"></div>
+
+    <!-- seaweed -->
+    <div class="seaweed" style="left:6%; animation-delay:0s;"></div>
+    <div class="seaweed" style="left:14%; height:50px; animation-delay:0.8s;"></div>
+    <div class="seaweed" style="left:88%; animation-delay:0.4s;"></div>
+    <div class="seaweed" style="left:94%; height:55px; animation-delay:1.2s;"></div>
+
+    <!-- CREATURE 1: Clownfish - Recommendation System -->
+    <div class="creature-track" style="top:12%; animation-name: swimRight; animation-duration: 22s;">
+      <div class="creature-bob" style="animation-duration:2.2s;">
+        <div class="creature" data-topic="1" onclick="openCard(1)">
+          <div class="creature-tag">Recommendation System</div>
+          <svg width="70" height="46" viewBox="0 0 70 46">
+            <ellipse cx="38" cy="23" rx="26" ry="16" fill="#ff8c42"/>
+            <path d="M38 8 L38 38 M38 12 L38 34 M38 16 L38 30" stroke="#ffffff" stroke-width="3"/>
+            <path d="M12 23 L-4 10 L-4 36 Z" fill="#ff8c42"/>
+            <circle cx="54" cy="18" r="4" fill="#0a2f52"/>
+            <circle cx="55" cy="17" r="1.3" fill="#fff"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- CREATURE 2: Jellyfish - Unsupervised Learning -->
+    <div class="creature-track" style="top:34%; animation-name: swimLeft; animation-duration: 26s;">
+      <div class="creature-bob" style="animation-duration:1.8s;">
+        <div class="creature" data-topic="2" onclick="openCard(2)">
+          <div class="creature-tag">Unsupervised Learning</div>
+          <svg width="60" height="70" viewBox="0 0 60 70">
+            <path d="M10 28 Q10 4 30 4 Q50 4 50 28 Q50 34 30 34 Q10 34 10 28 Z" fill="#c084fc" opacity="0.9"/>
+            <path d="M18 33 Q16 45 14 58" stroke="#c084fc" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M26 33 Q25 48 23 62" stroke="#c084fc" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M34 33 Q35 48 37 62" stroke="#c084fc" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M42 33 Q44 45 46 58" stroke="#c084fc" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <circle cx="22" cy="18" r="2.5" fill="#5b2a86"/>
+            <circle cx="38" cy="18" r="2.5" fill="#5b2a86"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- CREATURE 3: School of Fish - Collaborative Filtering -->
+    <div class="creature-track" style="top:56%; animation-name: swimRight; animation-duration: 30s;">
+      <div class="creature-bob" style="animation-duration:2s;">
+        <div class="creature" data-topic="3" onclick="openCard(3)">
+          <div class="creature-tag">Collaborative Filtering</div>
+          <svg width="90" height="50" viewBox="0 0 90 50">
+            <g>
+              <ellipse cx="20" cy="15" rx="14" ry="9" fill="#4fd1c5"/>
+              <path d="M8 15 L-3 8 L-3 22 Z" fill="#4fd1c5"/>
+              <circle cx="27" cy="12" r="2" fill="#0a2f52"/>
+            </g>
+            <g>
+              <ellipse cx="45" cy="28" rx="15" ry="10" fill="#38bdf8"/>
+              <path d="M32 28 L20 20 L20 36 Z" fill="#38bdf8"/>
+              <circle cx="53" cy="24" r="2.2" fill="#0a2f52"/>
+            </g>
+            <g>
+              <ellipse cx="70" cy="14" rx="13" ry="8.5" fill="#4fd1c5"/>
+              <path d="M59 14 L48 7 L48 21 Z" fill="#4fd1c5"/>
+              <circle cx="77" cy="11" r="2" fill="#0a2f52"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- CREATURE 4: Turtle - Content-Based Filtering -->
+    <div class="creature-track" style="top:76%; animation-name: swimLeft; animation-duration: 34s;">
+      <div class="creature-bob" style="animation-duration:2.6s;">
+        <div class="creature" data-topic="4" onclick="openCard(4)">
+          <div class="creature-tag">Content-Based Filtering</div>
+          <svg width="80" height="56" viewBox="0 0 80 56">
+            <ellipse cx="42" cy="28" rx="26" ry="18" fill="#2f9e44"/>
+            <path d="M42 12 L52 22 L52 34 L42 44 L32 34 L32 22 Z" fill="#40c057" stroke="#237032" stroke-width="1.5"/>
+            <circle cx="42" cy="28" r="6" fill="#237032"/>
+            <ellipse cx="14" cy="26" rx="9" ry="7" fill="#2f9e44"/>
+            <circle cx="10" cy="23" r="1.6" fill="#0a2f52"/>
+            <path d="M50 8 L60 2 L58 12 Z" fill="#2f9e44"/>
+            <path d="M50 48 L60 54 L58 44 Z" fill="#2f9e44"/>
+            <path d="M18 44 L10 52 L20 50 Z" fill="#2f9e44"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="sand"></div>
+  </div>
+
+  <div class="hint">💡 Tip: click the sea creatures while they're swimming, don't wait for them to stop!</div>
+</div>
+
+<!-- Modal cards -->
+<div class="overlay" id="overlay1">
+  <div class="card">
+    <button class="close-btn" onclick="closeCard(1)">✕</button>
+    <div class="subtitle">Clownfish 🐠</div>
+    <h2>What is a Recommendation System?</h2>
+    <ul>
+      <li>A system that <b>suggests items</b> (movies, songs, products, videos) that best match a user's interests.</li>
+      <li>Its goal: help users find relevant things among <b>millions of options</b> without searching one by one.</li>
+      <li>The more a user interacts with it, the "smarter" the system gets at recognizing their taste.</li>
+    </ul>
+    <div class="example-box">Example: watch suggestions on Netflix, the "Discover" playlist on Spotify, or "You Might Like" on an online store.</div>
+    <button class="continue-btn" onclick="closeCard(1)">Keep Swimming 🐟</button>
+  </div>
+</div>
+
+<div class="overlay" id="overlay2">
+  <div class="card">
+    <button class="close-btn" onclick="closeCard(2)">✕</button>
+    <div class="subtitle">Jellyfish 🪼</div>
+    <h2>What is Unsupervised Learning?</h2>
+    <ul>
+      <li>A way of training machine learning models <b>without labels or predefined correct answers</b>.</li>
+      <li>The model finds <b>hidden patterns and groups</b> in the data on its own, a process known as clustering.</li>
+      <li>In recommendation systems, this technique is used to group similar users or items without being told the categories beforehand.</li>
+    </ul>
+    <div class="example-box">Example: grouping online shoppers into a few "buyer types" purely from their shopping habits, with no labels defined by a human.</div>
+    <button class="continue-btn" onclick="closeCard(2)">Keep Swimming 🐟</button>
+  </div>
+</div>
+
+<div class="overlay" id="overlay3">
+  <div class="card">
+    <button class="close-btn" onclick="closeCard(3)">✕</button>
+    <div class="subtitle">School of Fish 🐟🐟🐟</div>
+    <h2>What is Collaborative Filtering?</h2>
+    <ul>
+      <li>Recommends items based on the <b>behavior of other users who are similar</b> to you.</li>
+      <li>The core idea: "people similar to you also liked this."</li>
+      <li>The system doesn't need to know the item's details, just the interaction patterns like ratings, clicks, or purchase history.</li>
+    </ul>
+    <div class="example-box">Example: "Users who watched this movie also watched..." — built from the similarity in behavior across many users, not from the movie's content.</div>
+    <button class="continue-btn" onclick="closeCard(3)">Keep Swimming 🐟</button>
+  </div>
+</div>
+
+<div class="overlay" id="overlay4">
+  <div class="card">
+    <button class="close-btn" onclick="closeCard(4)">✕</button>
+    <div class="subtitle">Turtle 🐢</div>
+    <h2>What is Content-Based Filtering?</h2>
+    <ul>
+      <li>Recommends items based on the <b>similarity of the items' own attributes or features</b>.</li>
+      <li>The system looks at the characteristics you liked, then finds other items with similar traits.</li>
+      <li>It doesn't depend on other users' behavior, it focuses purely on the item's own content.</li>
+    </ul>
+    <div class="example-box">Example: you like action movies with a certain actor, so the system recommends other action movies with a similar genre or actor.</div>
+    <button class="continue-btn" onclick="closeCard(4)">Keep Swimming 🐟</button>
+  </div>
+</div>
+
+<div class="overlay" id="overlayFinal">
+  <div class="card treasure-card">
+    <button class="close-btn" onclick="closeFinal()">✕</button>
+    <div class="chest">🏆</div>
+    <h2>Treasure Map Complete!</h2>
+    <div class="relation-box">
+      <b>How does it all connect?</b><br><br>
+      <b>Unsupervised Learning</b> is one of the machine learning approaches that underlies <b>Recommendation Systems</b>.<br><br>
+      Within a Recommendation System, there are two main techniques: <b>Collaborative Filtering</b> (looking at the behavior of similar users) and <b>Content-Based Filtering</b> (looking at the similarity of item content/attributes).<br><br>
+      Combining both makes recommendations more accurate and relevant!
+    </div>
+    <button class="continue-btn" onclick="closeFinal()">Done 🎉</button>
+  </div>
+</div>
+
+<script>
+var collected = { 1:false, 2:false, 3:false, 4:false };
+var total = 4;
+
+function updateProgress() {
+  var count = 0;
+  for (var key in collected) {
+    if (collected[key]) { count = count + 1; }
+  }
+  var pct = (count / total) * 100;
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressLabel').innerText = count + ' / ' + total + ' collected';
+  if (count === total) {
+    setTimeout(function () {
+      var el = document.getElementById('overlayFinal');
+      el.className = 'overlay show';
+    }, 400);
+  }
+}
+
+function openCard(id) {
+  var el = document.getElementById('overlay' + id);
+  el.className = 'overlay show';
+}
+
+function closeCard(id) {
+  var el = document.getElementById('overlay' + id);
+  el.className = 'overlay';
+  if (!collected[id]) {
+    collected[id] = true;
+    var creatureEl = document.querySelector('.creature[data-topic="' + id + '"]');
+    if (creatureEl) {
+      creatureEl.className = 'creature collected';
+      var check = document.createElement('div');
+      check.className = 'checkmark';
+      check.innerText = '✓';
+      creatureEl.appendChild(check);
+    }
+    updateProgress();
+  }
+}
+
+function closeFinal() {
+  var el = document.getElementById('overlayFinal');
+  el.className = 'overlay';
+}
+</script>
+
+</body>
+</html>
